@@ -88,6 +88,11 @@
 #cmakedefine HAVE_STRNDUP
 #cmakedefine HAVE_MEMMEM
 
+#cmakedefine HAVE_VSCPRINTF
+#cmakedefine HAVE__VSCPRINTF
+#cmakedefine HAVE_C99_VSNPRINTF
+#cmakedefine HAVE_VASPRINTF
+
 /* printf support for size_t and uint64_t */
 #if defined(WIN32)
 #define PRINTF_SIZE_T "%Iu"

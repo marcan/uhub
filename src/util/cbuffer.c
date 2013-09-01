@@ -103,15 +103,42 @@ void cbuf_append(struct cbuffer* buf, const char* msg)
 
 void cbuf_append_format(struct cbuffer* buf, const char* format, ...)
 {
-	static char tmp[1024];
+#if defined(HAVE_VSCPRINTF)
 	va_list args;
 	int bytes;
 	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	va_start(args, format);
+	/*Get the needed size*/
+	bytes = vscprintf(format, args);
+	if (buf->size + bytes < buf->capacity)
+		cbuf_resize(buf, buf->size + bytes);
+	/*Do the call over the buffer ifself avoiding a memory copy*/
+	snprintf(buf->buf + buf->size, bytes+1, format, args);
+	buf->size += bytes;
+	va_end(args);
+#else
+#if defined(HAVE_VASPRINTF)
+	char *tmp;
+#else
+	static char tmp[1024];
+#endif
+	va_list args;
+	int bytes;
+	cbuf_try_deconst(buf);
+	uhub_assert(buf->flags == 0);
+	va_start(args, format);
+#if defined(HAVE_VASPRINTF)
+	bytes = vasprintf(&tmp, format, args);
+#else
 	bytes = vsnprintf(tmp, 1024, format, args);
+#endif
 	va_end(args);
 	cbuf_append_bytes(buf, tmp, bytes);
+#if defined(HAVE_VASPRINTF)
+	free(tmp);
+#endif
+#endif
 }
 
 void cbuf_append_strftime(struct cbuffer* buf, const char* format, const struct tm* tm)

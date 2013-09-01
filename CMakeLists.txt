@@ -30,6 +30,7 @@ include(TestBigEndian)
 include(CheckSymbolExists) 
 include(CheckIncludeFile)
 include(CheckTypeSize)
+include(CheckCSourceRuns)
 
 #Some functions need this to be found
 add_definitions(-D_GNU_SOURCE)
@@ -69,6 +70,30 @@ endif()
 check_type_size( ssize_t SSIZE_T )
 check_symbol_exists(memmem string.h HAVE_MEMMEM)
 check_symbol_exists(strndup string.h HAVE_STRNDUP)
+
+#The snprintf family works in very strange ways when you want to avoid overflows and cuts
+#This one will tell us the number of characters the call would write, but is hard to find
+check_symbol_exists(vscprintf stdio.h HAVE_VSCPRINTF)
+#This is microsoft version since they don't follow C99's vsnprintf return values
+check_symbol_exists(_vscprintf stdio.h HAVE__VSCPRINTF)
+#If we fall back to vsnprintf then we need to check it is indeed the C99 version
+check_c_source_runs("
+	#include <stdio.h>
+	#include <stdarg.h>
+	int test_c99_vsnprintf(const char* format, ...)
+	{
+		int bytes;
+		va_list args;
+		va_start(args, format);
+		bytes = vsnprintf(NULL, 0, format, args);
+		va_end(args);
+		return bytes;
+	}
+
+	int main() { return !(test_c99_vsnprintf(\"%s\",\"lol\")==3); }
+			" HAVE_C99_VSNPRINTF)
+#This will return an string for us to copy then free, it's slower but better than falling back to an static 1024 byte buffer
+check_symbol_exists(vasprintf stdio.h HAVE_VASPRINTF)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories(${SQLITE3_INCLUDE_DIRS})

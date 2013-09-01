@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#include <stdarg.h>
 #include "uhub.h"
 
 static const char* BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -368,6 +368,19 @@ void* memmem(const void *haystack, size_t haystacklen, const void *needle, size_
 		ptr = memchr(&ptr[1], c_pat[0], &c_buf[haystacklen] - &ptr[0]);
 	}
 	return 0;
+}
+#endif
+
+/*Return the number of chracters that vsprintf would return*/
+#ifdef LOCAL_VSCPRINTF
+int vscprintf(const char *format, va_list args) {
+#if defined(HAVE__VSCPRINTF)
+	return _vscprintf(format,args);
+#elif defined(HAVE_C99_VSNPRINTF)
+	return vsnprintf(NULL,0,format,args);
+#else
+#error "No implementation for vscprintf available, try with a C library with propper C99 support"
+#endif
 }
 #endif
 
