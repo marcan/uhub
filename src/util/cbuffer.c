@@ -61,13 +61,29 @@ void cbuf_destroy(struct cbuffer* buf)
 
 void cbuf_resize(struct cbuffer* buf, size_t capacity)
 {
+	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	buf->capacity = capacity;
 	buf->buf = hub_realloc(buf->buf, capacity + 1);
 }
 
+void cbuf_deconst(struct cbuffer* buf)
+{
+	char *buffer;
+	if (!(buf->flags & CBUF_FLAG_CONST_BUFFER))
+	{
+		return;
+	}
+	buf->capacity = buf->size;
+	buf->flags = buf->flags & (~CBUF_FLAG_CONST_BUFFER);
+	buffer = hub_malloc(buf->capacity + 1);
+	memcpy(buffer, buf->buf, buf->size+1);
+	buf->buf=buffer;
+}
+
 void cbuf_append_bytes(struct cbuffer* buf, const char* msg, size_t len)
 {
+	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	if (buf->size + len >= buf->capacity)
 		cbuf_resize(buf, buf->size + len);
@@ -80,6 +96,7 @@ void cbuf_append_bytes(struct cbuffer* buf, const char* msg, size_t len)
 void cbuf_append(struct cbuffer* buf, const char* msg)
 {
 	size_t len = strlen(msg);
+	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	cbuf_append_bytes(buf, msg, len);
 }
@@ -89,6 +106,7 @@ void cbuf_append_format(struct cbuffer* buf, const char* format, ...)
 	static char tmp[1024];
 	va_list args;
 	int bytes;
+	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	va_start(args, format);
 	bytes = vsnprintf(tmp, 1024, format, args);
@@ -100,6 +118,7 @@ void cbuf_append_strftime(struct cbuffer* buf, const char* format, const struct 
 {
 	static char tmp[1024];
 	int bytes;
+	cbuf_try_deconst(buf);
 	uhub_assert(buf->flags == 0);
 	bytes = strftime(tmp, sizeof(tmp), format, tm);
 	cbuf_append_bytes(buf, tmp, bytes);
