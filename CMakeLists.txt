@@ -26,6 +26,14 @@ option(PCRE_SUPPORT "Enable PCRE support" ON)
 find_package(Git)
 find_package(Sqlite3)
 
+include(CheckSymbolExists) 
+include(CheckIncludeFile)
+include(CheckTypeSize)
+include(CheckCSourceRuns)
+
+#Some functions need this to be found
+add_definitions(-D_GNU_SOURCE)
+set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
 if (SSL_SUPPORT)
 	if (USE_OPENSSL)
 		find_package(OpenSSL)
@@ -33,7 +41,7 @@ if (SSL_SUPPORT)
 		find_package(GnuTLS)
 	endif()
 	if (NOT GNUTLS_FOUND AND NOT OPENSSL_FOUND)
-		message(FATAL_ERROR "Neither OpenSSL nor GnuTLS are not found!")
+		message(FATAL_ERROR "Neither OpenSSL nor GnuTLS were found!")
 	endif()
 endif()
 
@@ -70,6 +78,39 @@ endif()
 if (MSVC)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
+
+check_include_file(stdint.h HAVE_STDINT_H)
+check_include_file(sys/types.h HAVE_SYS_TYPES_H)
+if (HAVE_SYS_TYPES_H)
+set (CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} "sys/types.h")
+endif()
+check_type_size( ssize_t SSIZE_T )
+check_symbol_exists(memmem string.h HAVE_MEMMEM)
+check_symbol_exists(strndup string.h HAVE_STRNDUP)
+
+#The snprintf family works in very strange ways when you want to avoid overflows and cuts
+#This one will tell us the number of characters the call would write, but is hard to find
+check_symbol_exists(vscprintf stdio.h HAVE_VSCPRINTF)
+#This is microsoft version since they don't follow C99's vsnprintf return values
+check_symbol_exists(_vscprintf stdio.h HAVE__VSCPRINTF)
+#If we fall back to vsnprintf then we need to check it is indeed the C99 version
+check_c_source_runs("
+	#include <stdio.h>
+	#include <stdarg.h>
+	int test_c99_vsnprintf(const char* format, ...)
+	{
+		int bytes;
+		va_list args;
+		va_start(args, format);
+		bytes = vsnprintf(NULL, 0, format, args);
+		va_end(args);
+		return bytes;
+	}
+
+	int main() { return !(test_c99_vsnprintf(\"%s\",\"lol\")==3); }
+			" HAVE_C99_VSNPRINTF)
+#This will return an string for us to copy then free, it's slower but better than falling back to an static 1024 byte buffer
+check_symbol_exists(vasprintf stdio.h HAVE_VASPRINTF)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 include_directories(${SQLITE3_INCLUDE_DIRS})
@@ -236,6 +277,7 @@ if (SYSTEMD_SUPPORT)
 endif()
 
 configure_file ("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_SOURCE_DIR}/version.h")
+configure_file ("${PROJECT_SOURCE_DIR}/system.h.in" "${PROJECT_SOURCE_DIR}/system.h")
 
 mark_as_advanced(FORCE CMAKE_BUILD_TYPE)
 if (RELEASE)

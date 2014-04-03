@@ -84,6 +84,13 @@ extern char* strndup(const char* string, size_t n);
 void* memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
 #endif
 
+#if !defined(HAVE_VSCPRINTF) && (defined(HAVE__VSCPRINTF) || defined(HAVE_C99_VSNPRINTF))
+#define HAVE_VSCPRINTF
+#define LOCAL_VSCPRINTF
+extern int vscprintf(const char *format, va_list args);
+#endif
+
+
 /**
  * Split the string based on split, and place the different parts into list.
  * @return the number of items in the list after split, or -1 if an error occured.
