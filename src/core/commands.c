@@ -267,7 +267,6 @@ struct hub_command_arg_data* hub_command_arg_next(struct hub_command* cmd, enum 
 	if (!ptr)
 		return NULL;
 
-	uhub_assert(ptr->type == type);
 	if (ptr->type != type)
 		return NULL;
 
