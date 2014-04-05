@@ -113,8 +113,8 @@ void cbuf_append_format(struct cbuffer* buf, const char* format, ...)
 	/*Get the needed size*/
 	bytes = vscprintf(format, args);
 	va_end(args);
-	if (buf->size + bytes + 1 < buf->capacity)
-		cbuf_resize(buf, buf->size + bytes);
+	if (buf->size + bytes + 2 < buf->capacity)
+		cbuf_resize(buf, buf->size + bytes + 2 );
 	/*Do the call over the buffer ifself avoiding a memory copy*/
 	va_start(args, format);
 	vsnprintf(buf->buf + buf->size, bytes+1, format, args);
