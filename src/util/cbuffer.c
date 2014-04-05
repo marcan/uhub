@@ -104,7 +104,7 @@ void cbuf_append(struct cbuffer* buf, const char* msg)
 
 void cbuf_append_format(struct cbuffer* buf, const char* format, ...)
 {
-#if defined(HAVE_VSCPRINTF)
+#if defined(HAVE_VSCPRINTF) && 0
 	va_list args;
 	int bytes;
 	cbuf_try_deconst(buf);
