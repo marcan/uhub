@@ -101,6 +101,7 @@ struct hub_info
 	struct event_queue* queue;
 	struct hub_config* config;
 	struct hub_user_manager* users;
+	struct linked_list* muxes;
 	struct acl_handle* acl;
 	struct adc_message* command_info;    /* The hub's INF command */
 	struct adc_message* command_support; /* The hub's SUP command */

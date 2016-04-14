@@ -231,7 +231,9 @@ int hub_handle_support(struct hub_info* hub, struct hub_user* u, struct adc_mess
 			if (user_flag_get(u, feature_tiger))
 			{
 				hub_send_handshake(hub, u);
-				net_con_set_timeout(u->connection, TIMEOUT_HANDSHAKE);
+				/* TODO: timeouts for mux users */
+				if (u->connection)
+					net_con_set_timeout(u->connection, TIMEOUT_HANDSHAKE);
 			}
 			else
 			{
@@ -245,7 +247,9 @@ int hub_handle_support(struct hub_info* hub, struct hub_user* u, struct adc_mess
 			if (hub->config->obsolete_clients)
 			{
 				hub_send_handshake(hub, u);
-				net_con_set_timeout(u->connection, TIMEOUT_HANDSHAKE);
+				/* TODO: timeouts for mux users */
+				if (u->connection)
+					net_con_set_timeout(u->connection, TIMEOUT_HANDSHAKE);
 			}
 			else
 			{
@@ -393,7 +397,10 @@ void hub_send_sid(struct hub_info* hub, struct hub_user* u)
 	if (user_is_connecting(u))
 	{
 		command = adc_msg_construct(ADC_CMD_ISID, 10);
-		sid = uman_get_free_sid(hub->users, u);
+		if (!u->id.sid)
+			sid = uman_get_free_sid(hub->users, u);
+		else
+			sid = u->id.sid;
 		adc_msg_add_argument(command, (const char*) sid_to_string(sid));
 		route_to_user(hub, u, command);
 		adc_msg_free(command);
@@ -554,6 +561,7 @@ static void hub_event_dispatcher(void* callback_data, struct event_data* message
 	{
 		case UHUB_EVENT_USER_JOIN:
 		{
+			LOG_TRACE("hub_event_user_join");
 			if (user_is_disconnecting(user))
 				break;
 
@@ -904,6 +912,7 @@ struct hub_info* hub_start_service(struct hub_config* config)
 
 	hub->config = config;
 	hub->users = NULL;
+	hub->muxes = list_create();
 
 	hub->users = uman_init();
 	if (!hub->users)
@@ -954,6 +963,11 @@ struct hub_info* hub_start_service(struct hub_config* config)
 	return hub;
 }
 
+static void hub_mux_destroy(void* ptr)
+{
+	if (ptr)
+		mux_destroy((struct hub_mux*)ptr);
+}
 
 void hub_shutdown_service(struct hub_info* hub)
 {
@@ -973,6 +987,8 @@ void hub_shutdown_service(struct hub_info* hub)
 	net_con_close(hub->server);
 	server_alt_port_stop(hub);
 	uman_shutdown(hub->users);
+	list_clear(hub->muxes, &hub_mux_destroy);
+	list_destroy(hub->muxes);
 	hub->status = hub_status_stopped;
 	hub_free(hub->sendbuf);
 	hub_free(hub->recvbuf);
@@ -1400,9 +1416,11 @@ void hub_disconnect_user(struct hub_info* hub, struct hub_user* user, int reason
 	}
 
 	/* stop reading from user */
-	net_shutdown_r(net_con_get_sd(user->connection));
-	net_con_close(user->connection);
-	user->connection = 0;
+	if (user->connection) {
+		net_shutdown_r(net_con_get_sd(user->connection));
+		net_con_close(user->connection);
+		user->connection = 0;
+	}
 
 	LOG_TRACE("hub_disconnect_user(), user=%p, reason=%d, state=%d", user, reason, user->state);
 

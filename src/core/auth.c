@@ -439,8 +439,8 @@ const char* acl_password_generate_challenge(struct hub_info* hub, struct hub_use
 	uint64_t tiger_res[3];
 	static char tiger_buf[MAX_CID_LEN+1];
 
-	// FIXME: Generate a better nonce scheme.
-	snprintf(buf, 64, "%p%d%d", user, (int) user->id.sid, (int) net_con_get_sd(user->connection));
+	// FIXME: Generate a better nonce scheme
+	snprintf(buf, 64, "%p%d%d", user, (int) user->id.sid, user->connection ? (int) net_con_get_sd(user->connection) : 0);
 
 	tiger((uint64_t*) buf, strlen(buf), (uint64_t*) tiger_res);
 	base32_encode((unsigned char*) tiger_res, TIGERSIZE, tiger_buf);

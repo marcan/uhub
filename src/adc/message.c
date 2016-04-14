@@ -110,7 +110,7 @@ static void adc_msg_set_length(struct adc_message* msg, size_t len)
 	msg->length = len;
 }
 
-static int adc_msg_grow(struct adc_message* msg, size_t size)
+int adc_msg_grow(struct adc_message* msg, size_t size)
 {
 	char* buf;
 	size_t newsize = 0;

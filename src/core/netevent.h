@@ -25,9 +25,11 @@
  */
 extern void net_on_accept(struct net_connection* con, int event, void *arg);
 extern void net_event(struct net_connection* con, int event, void *arg);
+extern void net_event_mux(struct net_connection* con, int event, void *arg);
 
-extern int handle_net_read(struct hub_user* user);
+extern int handle_net_read(struct hub_user* user, struct hub_mux* mux);
 extern int handle_net_write(struct hub_user* user);
+extern int handle_net_write_mux(struct hub_mux* mux);
 
 
 #endif /* HAVE_UHUB_NET_EVENT_H */

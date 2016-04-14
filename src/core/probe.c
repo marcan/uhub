@@ -74,6 +74,18 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 				probe_destroy(probe);
 				return;
 			}
+			if (memcmp(probe_recvbuf, "MUX0", 4) == 0)
+			{
+				struct hub_mux* mux;
+				LOG_TRACE("Probed MUX");
+				if (mux = mux_create(probe->hub, probe->connection, &probe->addr))
+				{
+					list_append(probe->hub->muxes, mux);
+					probe->connection = 0;
+				}
+				probe_destroy(probe);
+				return;
+			}
 #ifdef SSL_SUPPORT
 			else if (bytes >= 11 &&
 				probe_recvbuf[0] == 22 &&

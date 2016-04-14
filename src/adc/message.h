@@ -247,5 +247,6 @@ void adc_msg_unterminate(struct adc_message* cmd);
  */
 int adc_msg_get_arg_offset(struct adc_message* msg);
 
+int adc_msg_grow(struct adc_message* msg, size_t size);
 
 #endif /* HAVE_UHUB_COMMAND_H */

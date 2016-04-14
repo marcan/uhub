@@ -84,6 +84,7 @@ extern "C" {
 #include "core/config.h"
 #include "core/eventid.h"
 #include "core/eventqueue.h"
+#include "core/mux.h"
 #include "core/netevent.h"
 #include "core/ioqueue.h"
 #include "core/user.h"

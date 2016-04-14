@@ -134,6 +134,7 @@ struct hub_user
 	struct flood_control   flood_search;
 	struct flood_control   flood_update;
 	struct flood_control   flood_extras;
+	struct hub_mux*        mux;
 };
 
 
