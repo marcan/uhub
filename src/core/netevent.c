@@ -21,16 +21,28 @@
 #include "ioqueue.h"
 #include "probe.h"
 
-int handle_net_read(struct hub_user* user)
+int handle_net_read(struct hub_user* user, struct hub_mux *mux)
 {
 	static char buf[MAX_RECV_BUF];
-	struct ioq_recv* q = user->recv_queue;
-	size_t buf_size = ioq_recv_get(q, buf, MAX_RECV_BUF);
+	struct net_connection* con;
+	struct ioq_recv* q;
+	size_t buf_size;
 	ssize_t size;
+	
+	if (user) {
+		con = user->connection;
+		q = user->recv_queue;
+	} else {
+		con = mux->connection;
+		q = mux->recv_queue;
+	}
 
-	if (user_flag_get(user, flag_maxbuf))
+	buf_size = ioq_recv_get(q, buf, MAX_RECV_BUF);
+
+	if (user && user_flag_get(user, flag_maxbuf))
 		buf_size = 0;
-	size = net_con_recv(user->connection, buf + buf_size, MAX_RECV_BUF - buf_size);
+
+	size = net_con_recv(con, buf + buf_size, MAX_RECV_BUF - buf_size);
 
 	if (size > 0)
 		buf_size += size;
@@ -62,18 +74,25 @@ int handle_net_read(struct hub_user* user)
 			LOG_DUMP("PROC: \"%s\" (%d)\n", start, (int) (pos - start));
 #endif
 
-			if (user_flag_get(user, flag_maxbuf))
-			{
-				user_flag_unset(user, flag_maxbuf);
-			}
-			else
-			{
-				if (((pos - start) > 0) && user->hub->config->max_recv_buffer > (pos - start))
+			if (user) {
+				if (user_flag_get(user, flag_maxbuf))
 				{
-					if (hub_handle_message(user->hub, user, start, (pos - start)) == -1)
+					user_flag_unset(user, flag_maxbuf);
+				}
+				else
+				{
+					if (((pos - start) > 0) && user->hub->config->max_recv_buffer > (pos - start))
 					{
+						if (hub_handle_message(user->hub, user, start, (pos - start)) == -1)
+						{
 							return quit_protocol_error;
+						}
 					}
+				}
+			} else {
+				if (mux_handle_message(mux, start, (pos - start)) == -1)
+				{
+					return quit_protocol_error;
 				}
 			}
 
@@ -85,7 +104,7 @@ int handle_net_read(struct hub_user* user)
 
 		if (lastPos || remaining)
 		{
-			if (remaining < (size_t) user->hub->config->max_recv_buffer)
+			if (!user || (remaining < (size_t) user->hub->config->max_recv_buffer))
 			{
 				ioq_recv_set(q, lastPos ? lastPos : buf, remaining);
 			}
@@ -128,6 +147,30 @@ int handle_net_write(struct hub_user* user)
 	return 0;
 }
 
+int handle_net_write_mux(struct hub_mux* mux)
+{
+	int ret = 0;
+	while (ioq_send_get_bytes(mux->send_queue))
+	{
+		ret = ioq_send_send(mux->send_queue, mux->connection);
+		if (ret <= 0)
+			break;
+	}
+
+	if (ret < 0)
+		return quit_socket_error;
+
+	if (ioq_send_get_bytes(mux->send_queue))
+	{
+		mux_net_io_want_write(mux);
+	}
+	else
+	{
+		mux_net_io_want_read(mux);
+	}
+	return 0;
+}
+
 void net_event(struct net_connection* con, int event, void *arg)
 {
 	struct hub_user* user = (struct hub_user*) arg;
@@ -148,7 +191,7 @@ void net_event(struct net_connection* con, int event, void *arg)
 
 	if (event & NET_EVENT_READ)
 	{
-		flag_close = handle_net_read(user);
+		flag_close = handle_net_read(user, NULL);
 		if (flag_close)
 		{
 			hub_disconnect_user(user->hub, user, flag_close);
@@ -162,6 +205,46 @@ void net_event(struct net_connection* con, int event, void *arg)
 		if (flag_close)
 		{
 			hub_disconnect_user(user->hub, user, flag_close);
+			return;
+		}
+	}
+}
+
+void net_event_mux(struct net_connection* con, int event, void *arg)
+{
+	struct hub_mux* mux = (struct hub_mux*) arg;
+	int flag_close = 0;
+
+#ifdef DEBUG_SENDQ
+	LOG_TRACE("net_event_mux() : fd=%d, ev=%d, arg=%p", con->sd, (int) event, arg);
+#endif
+
+	if (event == NET_EVENT_TIMEOUT)
+	{
+		/* TODO: user connection timeouts */
+		return;
+	}
+
+	if (event & NET_EVENT_READ)
+	{
+		flag_close = handle_net_read(NULL, mux);
+		if (flag_close)
+		{
+			struct hub_info *hub = mux->hub;
+			mux_disconnect(mux);
+			list_remove(hub->muxes, mux);
+			return;
+		}
+	}
+
+	if (event & NET_EVENT_WRITE)
+	{
+		flag_close = handle_net_write_mux(mux);
+		if (flag_close)
+		{
+			struct hub_info *hub = mux->hub;
+			mux_disconnect(mux);
+			list_remove(hub->muxes, mux);
 			return;
 		}
 	}

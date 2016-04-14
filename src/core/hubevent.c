@@ -38,7 +38,8 @@ void on_login_success(struct hub_info* hub, struct hub_user* u)
 	plugin_log_user_login_success(hub, u);
 
 	/* reset timeout */
-	net_con_clear_timeout(u->connection);
+	if (u->connection)
+		net_con_clear_timeout(u->connection);
 }
 
 void on_login_failure(struct hub_info* hub, struct hub_user* u, enum status_message msg)

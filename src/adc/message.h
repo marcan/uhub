@@ -209,6 +209,7 @@ extern char* adc_msg_unescape(const char* string);
  */
 extern int adc_msg_unescape_to_target(const char* string, char* target, size_t target_size);
 
+int adc_msg_grow(struct adc_message* msg, size_t size);
 
 /**
  * Convert a string to a ADC command escaped string.

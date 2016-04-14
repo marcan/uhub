@@ -39,7 +39,7 @@ struct hub_user* user_create(struct hub_info* hub, struct net_connection* con, s
 {
 	struct hub_user* user = NULL;
 
-	LOG_TRACE("user_create(), hub=%p, con[sd=%d]", hub, net_con_get_sd(con));
+	LOG_TRACE("user_create(), hub=%p, con[sd=%d]", hub, con ? net_con_get_sd(con) : -1);
 
 	user = (struct hub_user*) hub_malloc_zero(sizeof(struct hub_user));
 
@@ -50,7 +50,8 @@ struct hub_user* user_create(struct hub_info* hub, struct net_connection* con, s
 	user->recv_queue = ioq_recv_create();
 
 	user->connection = con;
-	net_con_reinitialize(user->connection, net_event, user, NET_EVENT_READ);
+	if (con)
+		net_con_reinitialize(user->connection, net_event, user, NET_EVENT_READ);
 
 	memcpy(&user->id.addr, addr, sizeof(struct ip_addr_encap));
 	user_set_state(user, state_protocol);
@@ -70,13 +71,19 @@ void user_destroy(struct hub_user* user)
 {
 	LOG_TRACE("user_destroy(), user=%p", user);
 
-	ioq_recv_destroy(user->recv_queue);
-	ioq_send_destroy(user->send_queue);
+	if (user->recv_queue)
+		ioq_recv_destroy(user->recv_queue);
+	if (user->send_queue)
+		ioq_send_destroy(user->send_queue);
 
 	if (user->connection)
 	{
 		LOG_TRACE("user_destory() -> net_con_close(%p)", user->connection);
 		net_con_close(user->connection);
+	}
+	if (user->mux)
+	{
+		mux_disconnect_user(user->mux, user);
 	}
 
 	adc_msg_free(user->info);

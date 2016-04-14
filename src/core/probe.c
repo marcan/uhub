@@ -80,6 +80,18 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 				const char* buf = "501 Not implemented\r\n\r\n";
 				net_con_send(con, buf, strlen(buf));
 			}
+			if (memcmp(probe_recvbuf, "MUX0", 4) == 0)
+			{
+				struct hub_mux* mux;
+				LOG_TRACE("Probed MUX");
+				if (mux = mux_create(probe->hub, probe->connection, &probe->addr))
+				{
+					list_append(probe->hub->muxes, mux);
+					probe->connection = 0;
+				}
+				probe_destroy(probe);
+				return;
+			}
 #ifdef SSL_SUPPORT
 			else if (bytes >= 11 &&
 				probe_recvbuf[0] == 22 &&

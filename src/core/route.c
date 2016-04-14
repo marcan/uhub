@@ -103,6 +103,10 @@ int route_to_user(struct hub_info* hub, struct hub_user* user, struct adc_messag
 	free(data);
 #endif
 
+	if (user->mux) {
+		return mux_send_to_user(user->mux, user, msg);
+	}
+
 	if (!user->connection)
 		return 0;
 
@@ -140,9 +144,15 @@ int route_flush_pipeline(struct hub_info* hub, struct hub_user* u)
 int route_to_all(struct hub_info* hub, struct adc_message* command) /* iterate users */
 {
 	struct hub_user* user;
+	struct hub_mux* mux;
 	LIST_FOREACH(struct hub_user*, user, hub->users->list,
 	{
-		route_to_user(hub, user, command);
+		if (!user->mux)
+			route_to_user(hub, user, command);
+	});
+	LIST_FOREACH(struct hub_mux*, mux, hub->muxes,
+	{
+		mux_broadcast(mux, command);
 	});
 
 	return 0;
