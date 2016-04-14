@@ -78,7 +78,7 @@ static int mux_send(struct hub_mux *mux, struct adc_message *msg)
 
 	uhub_assert(msg->cache && *msg->cache);
 	
-	LOG_WARN("%s\n", msg->cache);
+	//LOG_WARN("%s", msg->cache);
 
 	if (ioq_send_is_empty(mux->send_queue))
 	{
@@ -222,7 +222,7 @@ static int mux_message_from_user(struct hub_mux *mux, const char* line, size_t l
 int mux_handle_message(struct hub_mux* mux, const char* line, size_t length)
 {
 
-	LOG_TRACE("mux_handle_message(%s)", line);
+	//LOG_TRACE("mux_handle_message(%s)", line);
 
 	if (mux->is_disconnecting)
 		return 0;
