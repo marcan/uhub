@@ -57,7 +57,7 @@ void mux_net_io_want_read(struct hub_mux* mux)
 static int mux_user_disconnected(struct hub_mux *mux, const char* line, size_t length)
 {
 	if (mux->is_disconnecting)
-		return;
+		return 0;
 
 	sid_t sid = string_to_sid(line);
 	struct hub_user* user = uman_get_user_by_sid(mux->hub->users, sid);
